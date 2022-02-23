@@ -1,18 +1,27 @@
 <#
 	Script: GPOs_Permissions_Report.ps1
-	Author: Dean Bunn
+	Author: Taylor McDougall and Dean Bunn
 	Last Edited: 2022-02-22
 #>
 
 #Import Group Policy Module 
 #Import-Module GroupPolicy;
 
-#OU=COE,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu
+#Pull Department OUs
+$dptOUs = Get-ADOrganizationalUnit -LDAPFilter '(name=*)' -SearchBase 'ou=coe-ou-dbdev,ou=coe,ou=departments,dc=ou,dc=ad3,dc=ucdavis,dc=edu' -server ou.ad3.ucdavis.edu
 
-#Get-ADOrganizationalUnit
+#Check Each OUs for GPOs Assigned
+foreach($dptOU in $dptOUs)
+{
+    
+    #Name 
+    #DistinguishedName
+    #LinkedGroupPolicyObjects (collection)
+    #ObjectClass : organizationalUnit
+    #ObjectGUID  : dfdb34ad-8a81-418a-8025-444329fdb3c6
+}
 
- Get-ADOrganizationalUnit -LDAPFilter '(name=*)' -SearchBase 'ou=coe,ou=departments,dc=ou,dc=ad3,dc=ucdavis,dc=edu' -server ou.ad3.ucdavis.edu
-
+#COE-US-Admins
 
 <#
 #Var for DN of Parent OU to Check
