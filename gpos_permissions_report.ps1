@@ -1,76 +1,139 @@
 <#
 	Script: GPOs_Permissions_Report.ps1
 	Author: Taylor McDougall and Dean Bunn
-	Last Edited: 2022-02-22
+	Last Edited: 2022-02-23
 #>
 
 #Import Group Policy Module 
-#Import-Module GroupPolicy;
+Import-Module GroupPolicy;
+
+#Var for Department OU Search Path
+[string]$dptOUSearchPath = "ou=coe,ou=departments,dc=ou,dc=ad3,dc=ucdavis,dc=edu"
+
+#Var for Domain Server
+[string]$dmnServer = "ou.ad3.ucdavis.edu";
+
+#Var for Domain FQDN
+[string]$dmnFDQN = "ou.ad3.ucdavis.edu";
+
+#Var for Admin Group to Check Permissions. User of Script Should be in this group
+[string]$adminGroupDN = (Get-ADGroup -Identity "COE-US-Admins" -Server $dmnServer).DistinguishedName;
+
+#Reporting Array for GPOs
+$raGPOs = @();
+
+#Reporting Array for Department OUs
+$raDOUs = @();
+
+#HashTable for Unique GPO IDs
+$htGPOIDs = @{};
 
 #Pull Department OUs
-$dptOUs = Get-ADOrganizationalUnit -LDAPFilter '(name=*)' -SearchBase 'ou=coe-ou-dbdev,ou=coe,ou=departments,dc=ou,dc=ad3,dc=ucdavis,dc=edu' -server ou.ad3.ucdavis.edu
-
+$dptOUs = Get-ADOrganizationalUnit -LDAPFilter '(name=*)' -SearchBase $dptOUSearchPath -server $dmnServer;
+ 
 #Check Each OUs for GPOs Assigned
 foreach($dptOU in $dptOUs)
 {
-    
-    #Name 
-    #DistinguishedName
-    #LinkedGroupPolicyObjects (collection)
-    #ObjectClass : organizationalUnit
-    #ObjectGUID  : dfdb34ad-8a81-418a-8025-444329fdb3c6
-}
+  
+    #Create Custom Department OU Object
+	$cstDOU = new-object PSObject -Property (@{ Name=""; DistinguishedName=""; ObjectGUID=""; LinkedGPOsCount=0; });
 
-#COE-US-Admins
+    #Set Values for Custom OU Object
+    $cstDOU.Name = $dptOU.Name;
+    $cstDOU.DistinguishedName = $dptOU.DistinguishedName;
+    $cstDOU.ObjectGUID = $dptOU.ObjectGUID.ToString();
+    $cstDOU.LinkedGPOsCount = $dptOU.LinkedGroupPolicyObjects.Count;
 
-<#
-#Var for DN of Parent OU to Check
-[string]$parentOUDN = "OU=COE,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
+    #Pull Unique GPO IDs
+    if($dptOU.LinkedGroupPolicyObjects.Count -gt 0)
+    {
 
-#Var for DN of Admin Group to Check for
-[string]$adminGroupDN = "CN=COE-US-Admins,OU=COE,OU=DEPARTMENTS,DC=ou,DC=ad3,DC=ucdavis,DC=edu";
+        foreach($lnkGPO in $dptOU.LinkedGroupPolicyObjects)
+        {
+            #Remove Unneeded GPO Resource Data to Get Only the GPO GUID ID
+            $gpoID = $lnkGPO.ToString().Split(',')[0].ToString().Replace("cn={","").Replace("}","");
+            
+            #Check for Unique GPO ID
+            if([string]::IsNullOrEmpty($gpoID) -eq $false -and $htGPOIDs.ContainsKey($gpoID) -eq $false)
+            {
+                $htGPOIDs.Add($gpoID,"1");
+            }
 
-#Var for ADsPath of Parent OU
-[string]$parentOUADsPath = "LDAP://" + $parentOUDN;
+        }#End of Linked Group Policy Objects Foreach
 
-#Var for ADsPath of Admin Group
-[string]$admnGrpADsPath = "LDAP://" + $adminGroupDN;
+    }#End of Linked Group Policy Objects Count Check
 
-#Var for Display Name of Admin Group
-[string]$admnGrpName = "";
+    #Add Custom Object to Reporting Array
+    $raDOUs += $cstDOU;
 
-#Array for OU DNs
-$arrOUDNs = @();
+}#End of $dptOUs Foreach
 
-#Array List for GPO Guids
-$alGPOGuids = New-Object System.Collections.ArrayList;
+#Export OU Information
+$raDOUs | Select-Object -Property ObjectGUID,Name,LinkedGPOsCount,DistinguishedName | Export-Csv -Path .\Report-Dept-OUs.csv -NoTypeInformation;
 
-#Array List for GPO Guids Needing Perms
-$alGPOGuidsNP = New-Object System.Collections.ArrayList;
+#Empty Check on Assigned GPOs
+if($htGPOIDs.Count -gt 0)
+{
 
-#Array List for OU Locations with GPOs that We Don't Have Permissions to Even Read
-$alOULocsNoRead = New-Object System.Collections.ArrayList;
+    foreach($gpID in $htGPOIDs.Keys)
+    {
 
-#Array List for GPO Guids We Can Ignore
-$alGPOGuidsIgnore = New-Object System.Collections.ArrayList;
+        #Create Custom GPO Reporting Object
+	    $cstGPO = new-object PSObject -Property (@{ DisplayName=""; Id=""; Owner=""; CreationTime=""; ModificationTime=""; PermissionLevel="None"; });
 
-#Array for Custom GPO Objects
-$arrCstGPOs = @();
+        #Convert String to Guid
+        $guidGPOID = [Guid]$gpID;
 
-#Load Ignore List
-[Void]$alGPOGuidsIgnore.add("b5788b69-2dac-4170-a060-959bfd60a431");
-[Void]$alGPOGuidsIgnore.add("b6a0cca3-93fa-4967-bc18-f838557c2986");
-[Void]$alGPOGuidsIgnore.add("454e61c1-6695-43f2-b281-367b2db2c714");
-[Void]$alGPOGuidsIgnore.add("48d25dc2-9ca6-4536-ac23-0dcccdeea431");
-[Void]$alGPOGuidsIgnore.add("558089e5-3ac7-4e26-8302-2ed6b6d7a585");
-[Void]$alGPOGuidsIgnore.add("909c731d-0911-4040-8c6c-b92c3ccea46e");
-[Void]$alGPOGuidsIgnore.Add("d6da4e75-0dc1-4f70-8ffa-beab1b925a18");
+        #Pull GPO
+        $gpo = Get-GPO -Guid $guidGPOID -Server $dmnServer -Domain $dmnFDQN;
+
+        #Set Values on Custom Object
+        $cstGPO.DisplayName = $gpo.DisplayName;
+        $cstGPO.Id = $gpo.Id.ToString();
+
+        #Check Creation Time
+        if($gpo.CreationTime -ne $null)
+        {
+            $cstGPO.CreationTime = $gpo.CreationTime.ToString("MM/dd/yyyy");
+        }
+
+        #Check Modification Time
+        if($gpo.ModificationTime -ne $null)
+        {
+            $cstGPO.ModificationTime = $gpo.ModificationTime.ToString("MM/dd/yyyy");
+        }
+
+        #Check Ownership
+        if([string]::IsNullOrEmpty($gpo.Owner) -eq $false)
+        {
+            $cstGPO.Owner = $gpo.Owner;
+        }
+
+        #Pull Permissions on GPO
+        $gpoPerms = Get-GPPermission -Guid $guidGPOID -Server $dmnServer -All;
+
+        #Check Permissions for Admin Group Access
+        foreach($gpperm in $gpoPerms)
+        {
+            #Find Access for Admin Group
+            if([string]::IsNullOrEmpty($gpperm.Trustee.DSPath) -eq $false -and [string]::Compare($gpperm.Trustee.DSPath,$adminGroupDN,$true) -eq 0)
+            {
+                #Report Permission Level for Admin Group
+                $cstGPO.PermissionLevel = $gpperm.Permission.ToString();
+
+            }#End of Compare Trustee DSPath
+
+        }#End of $gpoPerms Foreach
+        
+        #Add Custom Object to Reporting Array
+        $raGPOs += $cstGPO;
+
+    }#End of $htGPOIDs Foreach
 
 
-#Pull Directory Entry for Main OU
-$deParentOU = [ADSI]$parentOUADsPath;
+}#End of $htGPOIDs Count Check
 
-#Pull Directory Entry for Admin Group
-$deAdminGroup = [ADSI]$admnGrpADsPath;
-#>
+#Export OU Information
+$raGPOs | Select-Object -Property Id,DisplayName,Owner,CreationTime,ModificationTime,PermissionLevel | Export-Csv -Path .\Report-GPOs.csv -NoTypeInformation;
+
 
