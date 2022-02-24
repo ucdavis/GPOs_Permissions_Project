@@ -22,17 +22,13 @@ foreach($csvGPO in $csvGPOs)
     #Only Grant Rights to GPOs the Old Group had Full Rights On
     if([string]::IsNullOrEmpty($csvGPO.Id) -eq $false -and [string]::IsNullOrEmpty($csvGPO.PermissionLevel) -eq $false -and $csvGPO.PermissionLevel -eq "GpoEditDeleteModifySecurity")
     {
-        #Setup for Testing
-        if($csvGPO.Id -eq "5885a54e-26f5-424a-9130-ce4c9140ce65")
-        {
-            #Convert String to Guid
-            $guidGPOID = [Guid]$csvGPO.Id;
+        
+        #Convert String to Guid
+        $guidGPOID = [Guid]$csvGPO.Id;
 
-            #Add Full Permissions to GPO for Admin Group
-            Set-GPPermission -Guid $guidGPOID -TargetName $grantedAdminGroup -TargetType Group -Server $dmnServer -PermissionLevel GpoEditDeleteModifySecurity;
+        #Add Full Permissions to GPO for Admin Group
+        Set-GPPermission -Guid $guidGPOID -TargetName $grantedAdminGroup -TargetType Group -Server $dmnServer -PermissionLevel GpoEditDeleteModifySecurity;
 
-        }#End of Setup for Testing
-          
     }#End of Permission Level Check for Old Group
     
 }#End of $csvGPOs Foreach

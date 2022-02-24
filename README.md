@@ -12,3 +12,5 @@ The second script will add permissions for the new admin group by taking the GPO
 The PowerShell Active Directory and Group Policy Modules must be installed on the system.
 
 
+
+
