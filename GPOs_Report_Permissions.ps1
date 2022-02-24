@@ -1,11 +1,14 @@
 <#
-	Script: GPOs_Permissions_Report.ps1
+	Script: GPOs_Report_Permissions.ps1
 	Author: Taylor McDougall and Dean Bunn
 	Last Edited: 2022-02-23
 #>
 
 #Import Group Policy Module 
 Import-Module GroupPolicy;
+
+#Var for SAM of Currently Assigned Admin Group
+[string]$adminGroupSAM = "COE-US-Admins";
 
 #Var for Department OU Search Path
 [string]$dptOUSearchPath = "ou=coe,ou=departments,dc=ou,dc=ad3,dc=ucdavis,dc=edu"
@@ -17,7 +20,7 @@ Import-Module GroupPolicy;
 [string]$dmnFDQN = "ou.ad3.ucdavis.edu";
 
 #Var for Admin Group to Check Permissions. User of Script Should be in this group
-[string]$adminGroupDN = (Get-ADGroup -Identity "COE-US-Admins" -Server $dmnServer).DistinguishedName;
+[string]$adminGroupDN = (Get-ADGroup -Identity $adminGroupSAM -Server $dmnServer).DistinguishedName;
 
 #Reporting Array for GPOs
 $raGPOs = @();
