@@ -1,7 +1,7 @@
 <#
 	Script: GPOs_Report_Permissions.ps1
 	Author: Taylor McDougall and Dean Bunn
-	Last Edited: 2022-02-23
+	Last Edited: 2022-02-25
 #>
 
 #Import Group Policy Module 
@@ -11,16 +11,16 @@ Import-Module GroupPolicy;
 [string]$adminGroupSAM = "COE-US-Admins";
 
 #Var for Department OU Search Path
-[string]$dptOUSearchPath = "ou=coe,ou=departments,dc=ou,dc=ad3,dc=ucdavis,dc=edu"
+[string]$dptOUSearchPath = "ou=coe,ou=departments,dc=ou,dc=ad3,dc=ucdavis,dc=edu";
 
-#Var for Domain Server
-[string]$dmnServer = "ou.ad3.ucdavis.edu";
+#Var for Admin Group Domain FQDN
+[string]$dmnAdminGrpFQDN = "ou.ad3.ucdavis.edu";
 
-#Var for Domain FQDN
-[string]$dmnFDQN = "ou.ad3.ucdavis.edu";
+#Var for GPOs Domain FQDN
+[string]$dmnGPOFDQN = "ou.ad3.ucdavis.edu";
 
 #Var for Admin Group to Check Permissions. User of Script Should be in this group
-[string]$adminGroupDN = (Get-ADGroup -Identity $adminGroupSAM -Server $dmnServer).DistinguishedName;
+[string]$adminGroupDN = (Get-ADGroup -Identity $adminGroupSAM -Server $dmnAdminGrpFQDN).DistinguishedName;
 
 #Reporting Array for GPOs
 $raGPOs = @();
@@ -32,7 +32,7 @@ $raDOUs = @();
 $htGPOIDs = @{};
 
 #Pull Department OUs
-$dptOUs = Get-ADOrganizationalUnit -LDAPFilter '(name=*)' -SearchBase $dptOUSearchPath -server $dmnServer;
+$dptOUs = Get-ADOrganizationalUnit -LDAPFilter '(name=*)' -SearchBase $dptOUSearchPath -server $dmnGPOFDQN;
  
 #Check Each OUs for GPOs Assigned
 foreach($dptOU in $dptOUs)
@@ -88,7 +88,7 @@ if($htGPOIDs.Count -gt 0)
         $guidGPOID = [Guid]$gpID;
 
         #Pull GPO
-        $gpo = Get-GPO -Guid $guidGPOID -Server $dmnServer -Domain $dmnFDQN;
+        $gpo = Get-GPO -Guid $guidGPOID -Server $dmnGPOFDQN -Domain $dmnGPOFDQN;
 
         #Set Values on Custom Object
         $cstGPO.DisplayName = $gpo.DisplayName;
@@ -113,7 +113,7 @@ if($htGPOIDs.Count -gt 0)
         }
 
         #Pull Permissions on GPO
-        $gpoPerms = Get-GPPermission -Guid $guidGPOID -Server $dmnServer -All;
+        $gpoPerms = Get-GPPermission -Guid $guidGPOID -Server $dmnGPOFDQN -DomainName $dmnGPOFDQN -All;
 
         #Check Permissions for Admin Group Access
         foreach($gpperm in $gpoPerms)

@@ -1,7 +1,7 @@
 <#
 	Script: GPOs_Add_Permissions.ps1
 	Author: Taylor McDougall and Dean Bunn
-	Last Edited: 2022-02-24
+	Last Edited: 2022-02-25
 #>
 
 #Import Group Policy Module 
@@ -10,8 +10,8 @@ Import-Module GroupPolicy;
 #Var for Domain and Name of Admin Group to Grant Permissions
 [string]$grantedAdminGroup = "AD3\COE-Admins";
 
-#Var for Domain Server
-[string]$dmnServer = "ou.ad3.ucdavis.edu";
+#Var for GPO Domain FQDN
+[string]$dmnGPOFDQN = "ou.ad3.ucdavis.edu";
 
 #Check for GPO Report File
 $csvGPOs = Import-Csv -Path .\Report-GPOs.csv;
@@ -27,7 +27,7 @@ foreach($csvGPO in $csvGPOs)
         $guidGPOID = [Guid]$csvGPO.Id;
 
         #Add Full Permissions to GPO for Admin Group
-        Set-GPPermission -Guid $guidGPOID -TargetName $grantedAdminGroup -TargetType Group -Server $dmnServer -PermissionLevel GpoEditDeleteModifySecurity;
+        Set-GPPermission -Guid $guidGPOID -TargetName $grantedAdminGroup -TargetType Group -Server $dmnGPOFDQN -DomainName $dmnGPOFDQN -PermissionLevel GpoEditDeleteModifySecurity;
 
     }#End of Permission Level Check for Old Group
     
